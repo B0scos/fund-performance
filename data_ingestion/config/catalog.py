@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 from config import settings, constants
 from utils.state_manager import PipelineState
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,7 @@ class FundCatalog:
     
     def _get_cache_age(self) -> pd.Timedelta:
         """Calculate how old the cache is."""
-        from datetime import datetime
-        import os
+
         
         cache_time = datetime.fromtimestamp(self.catalog_path.stat().st_mtime)
         return pd.Timestamp.now() - pd.Timestamp(cache_time)

@@ -74,9 +74,7 @@ class FundCatalog:
                 dtype=str,
                 low_memory=False
             )
-            
-            # Normalize CNPJ
-            df['CNPJ_FUNDO'] = df['CNPJ_FUNDO'].astype(str).str.replace(r'\D', '', regex=True)
+
             
             # Keep essential columns
             available_cols = [c for c in constants.FUND_CATALOG_COLUMNS if c in df.columns]

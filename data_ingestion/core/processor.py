@@ -95,7 +95,6 @@ class DataProcessor:
             # Filter chunk
             filtered_chunk = chunk[chunk['CNPJ_FUNDO'].isin(target_cnpjs)].copy()
             if not filtered_chunk.empty:
-                filtered_chunk['DT_COMPTC'] = pd.to_datetime(filtered_chunk['DT_COMPTC'])
                 chunks.append(filtered_chunk)
         
         if chunks:
