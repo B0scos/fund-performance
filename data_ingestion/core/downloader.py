@@ -21,10 +21,49 @@ class DownloadManager:
     
     def __init__(self):
         self.raw_dir = settings.RAW_DATA_DIR
+        self.raw_unzip_dir = settings.RAW_UNZIP_DIR
         self.timeout = settings.DOWNLOAD_TIMEOUT
         self.retries = settings.DOWNLOAD_RETRIES
         self.logger = logging.getLogger(__name__)
-    
+
+    def extract_zip(self, zip_path: Path, dest_dir: Optional[Path] = None, delete_zip_after: bool = False) -> bool:
+        """Extract a downloaded ZIP to the raw_unzip directory (or `dest_dir`).
+
+        The extraction preserves the CSVs exactly (no parsing or modification).
+        It creates a subdirectory named after the zip stem to avoid collisions.
+
+        Args:
+            zip_path: Path to the ZIP file
+            dest_dir: Optional destination directory; defaults to settings.RAW_UNZIP_DIR
+            delete_zip_after: Whether to delete the ZIP file after successful extraction
+
+        Returns:
+            True if extraction succeeded, False otherwise
+        """
+        import zipfile
+
+        dest_dir = dest_dir or self.raw_unzip_dir
+        target_dir = dest_dir / zip_path.stem
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                zf.extractall(path=target_dir)
+            self.logger.info(f"✓ Extracted {zip_path.name} -> {target_dir}")
+
+            if delete_zip_after:
+                try:
+                    zip_path.unlink()
+                    self.logger.info(f"✓ Deleted zip file {zip_path.name}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete zip file {zip_path.name}: {e}")
+
+            return True
+        except zipfile.BadZipFile:
+            self.logger.error(f"Bad ZIP file: {zip_path.name}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error extracting {zip_path.name}: {e}")
+            return False    
     def generate_monthly_url(self, year_month: datetime) -> str:
         """
         Generate URL for monthly file based on date.
@@ -59,12 +98,13 @@ class DownloadManager:
         return self.raw_dir / filename
     
     @retry(max_attempts=3, delay=2)
-    def download_single_month(self, year_month: datetime) -> Optional[Path]:
+    def download_single_month(self, year_month: datetime, force: bool = False) -> Optional[Path]:
         """
         Download a single monthly file.
         
         Args:
             year_month: Month to download
+            force: If True, re-download even when the file exists
             
         Returns:
             Path to downloaded file, or None if failed
@@ -72,8 +112,8 @@ class DownloadManager:
         url = self.generate_monthly_url(year_month)
         local_path = self.get_local_path(year_month)
         
-        # Skip if already exists
-        if local_path.exists():
+        # Skip if already exists unless force requested
+        if local_path.exists() and not force:
             size_mb = local_path.stat().st_size / (1024 * 1024)
             self.logger.debug(f"File exists: {local_path.name} ({size_mb:.1f} MB)")
             return local_path
@@ -109,7 +149,7 @@ class DownloadManager:
             self.logger.error(f"Download error: {e}")
             return None
     
-    def download_range(self, start_date: str, end_date: str, max_workers: int = None) -> List[Path]:
+    def download_range(self, start_date: str, end_date: str, max_workers: int = None, force: bool = False) -> List[Path]:
         """
         Download multiple months in parallel.
         
@@ -117,11 +157,11 @@ class DownloadManager:
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
             max_workers: Maximum parallel downloads
+            force: If True, re-download files even when they exist
             
         Returns:
             List of downloaded file paths
         """
-        
         
         max_workers = max_workers or settings.MAX_WORKERS
         months = generate_month_range(start_date, end_date)
@@ -132,7 +172,7 @@ class DownloadManager:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit download tasks
             future_to_month = {
-                executor.submit(self.download_single_month, month): month 
+                executor.submit(self.download_single_month, month, force): month 
                 for month in months
             }
             

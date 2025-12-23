@@ -12,6 +12,7 @@ LOGS_DIR = PROJECT_ROOT / "logs"
 
 # Data subdirectories
 RAW_DATA_DIR = DATA_DIR / "raw"
+RAW_UNZIP_DIR = DATA_DIR / "raw_unzip"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 CACHE_DIR = DATA_DIR / "cache"
 STATE_FILE = DATA_DIR / "pipeline_state.json"
@@ -37,5 +38,5 @@ DEFAULT_DATE_RANGE = {
 }
 
 # Create directories
-for directory in [DATA_DIR, LOGS_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR, CACHE_DIR]:
+for directory in [DATA_DIR, LOGS_DIR, RAW_DATA_DIR, RAW_UNZIP_DIR, PROCESSED_DATA_DIR, CACHE_DIR]:
     directory.mkdir(parents=True, exist_ok=True)

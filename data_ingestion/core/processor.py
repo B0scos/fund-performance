@@ -44,16 +44,40 @@ class DataProcessor:
                     self.logger.error(f"CSV not found in {file_path.name}")
                     return None
                 
-                # Read CSV from ZIP
+                # Read CSV header to detect a CNPJ column name
+                with zf.open(csv_name) as head_file:
+                    header_line = head_file.readline().decode('utf-8', errors='replace').strip()
+                    cols = [c.strip() for c in header_line.split(';')]
+                    cnpj_col = None
+                    for c in cols:
+                        if 'cnpj' in c.lower():
+                            cnpj_col = c
+                            break
+
+                    if not cnpj_col:
+                        # Don't treat missing CNPJ column as an error - skip file quietly
+                        self.logger.debug(f"No CNPJ-like column found in {file_path.name}; skipping file")
+                        return None
+
+                # Re-open the CSV and delegate to small/large processors with detected cnpj_col
                 with zf.open(csv_name) as csv_file:
                     # Read in chunks if file is large
                     file_size = zf.getinfo(csv_name).file_size
-                    
-                    if file_size > 50 * 1024 * 1024:  # > 50 MB
-                        return self._process_large_file(csv_file, target_cnpjs)
-                    else:
-                        return self._process_small_file(csv_file, target_cnpjs)
-                        
+                    try:
+                        if file_size > 50 * 1024 * 1024:  # > 50 MB
+                            return self._process_large_file(csv_file, target_cnpjs, cnpj_col)
+                        else:
+                            return self._process_small_file(csv_file, target_cnpjs, cnpj_col)
+                    except ValueError as ve:
+                        msg = str(ve)
+                        if 'Usecols do not match columns' in msg or 'usecols' in msg.lower():
+                            # Treat usecols mismatch as non-fatal and skip the file
+                            self.logger.debug(f"Usecols mismatch when reading {file_path.name}: {msg}; skipping file")
+                            return None
+                        raise
+                    except pd.errors.ParserError as pe:
+                        self.logger.debug(f"ParserError when reading {file_path.name}: {pe}; skipping file")
+                        return None
         except zipfile.BadZipFile:
             self.logger.error(f"Bad ZIP file: {file_path.name}")
             return None
@@ -61,39 +85,57 @@ class DataProcessor:
             self.logger.error(f"Error processing {file_path.name}: {e}")
             return None
     
-    def _process_small_file(self, csv_file, target_cnpjs: Set[str]) -> pd.DataFrame:
-        """Process small files by reading all at once."""
+    def _process_small_file(self, csv_file, target_cnpjs: Set[str], cnpj_col: str = 'CNPJ_FUNDO') -> pd.DataFrame:
+        """Process small files by reading all at once.
+
+        This function attempts to avoid modifying original data values. It will:
+        - Read only the necessary columns (detected `cnpj_col`, `DT_COMPTC`, `VL_QUOTA`) to reduce memory usage
+        - NOT perform numeric casting on `VL_QUOTA` (leave as read)
+        - NOT coerce `DT_COMPTC` to datetime here (preserve original string)
+        - Add a `CNPJ_FUNDO` column (string) if the detected column has a different name, for downstream compatibility
+        """
+        usecols = [cnpj_col, 'DT_COMPTC', 'VL_QUOTA']
+
         df = pd.read_csv(
             csv_file,
             sep=';',
-            decimal=',',
-            dtype={'CNPJ_FUNDO': str, 'VL_QUOTA': float},
-            usecols=['CNPJ_FUNDO', 'DT_COMPTC', 'VL_QUOTA'],
+            usecols=usecols,
             encoding='utf-8'
         )
-        
-        # Filter for target CNPJs
-        filtered = df[df['CNPJ_FUNDO'].isin(target_cnpjs)].copy()
-        filtered['DT_COMPTC'] = pd.to_datetime(filtered['DT_COMPTC'])
-        
+
+        # Normalize a copy of the CNPJ column for downstream compatibility, without altering original columns
+        if cnpj_col != 'CNPJ_FUNDO':
+            df['CNPJ_FUNDO'] = df[cnpj_col].astype(str)
+        else:
+            df['CNPJ_FUNDO'] = df[cnpj_col].astype(str)
+
+        # Filter for target CNPJs (matching as strings)
+        filtered = df[df['CNPJ_FUNDO'].isin(set(map(str, target_cnpjs)))].copy()
+
         return filtered
     
-    def _process_large_file(self, csv_file, target_cnpjs: Set[str]) -> pd.DataFrame:
-        """Process large files in chunks."""
+    def _process_large_file(self, csv_file, target_cnpjs: Set[str], cnpj_col: str = 'CNPJ_FUNDO') -> pd.DataFrame:
+        """Process large files in chunks.
+
+        Reads chunks and preserves original data types/values as much as possible. Adds a `CNPJ_FUNDO` column for compatibility.
+        """
         chunks = []
+        usecols = [cnpj_col, 'DT_COMPTC', 'VL_QUOTA']
+
         chunk_iterator = pd.read_csv(
             csv_file,
             sep=';',
-            decimal=',',
-            dtype={'CNPJ_FUNDO': str, 'VL_QUOTA': float},
-            usecols=['CNPJ_FUNDO', 'DT_COMPTC', 'VL_QUOTA'],
+            usecols=usecols,
             encoding='utf-8',
             chunksize=self.chunk_size
         )
         
         for chunk in chunk_iterator:
-            # Filter chunk
-            filtered_chunk = chunk[chunk['CNPJ_FUNDO'].isin(target_cnpjs)].copy()
+            # Normalize CNPJ column to string copy
+            chunk['CNPJ_FUNDO'] = chunk[cnpj_col].astype(str)
+
+            # Filter chunk (string matching)
+            filtered_chunk = chunk[chunk['CNPJ_FUNDO'].isin(set(map(str, target_cnpjs)))].copy()
             if not filtered_chunk.empty:
                 chunks.append(filtered_chunk)
         

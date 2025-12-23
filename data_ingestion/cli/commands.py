@@ -21,6 +21,9 @@ Examples:
   # Initial historical download
   python main.py init --start 2020-01-01 --end 2025-12-31
   
+  # Download only and extract zips (do not process or change data)
+  python main.py init --start 2025-10-01 --end 2025-12-31 --raw-only --extract --delete-zip
+  
   # Monthly update (schedule this)
   python main.py update
   
@@ -40,6 +43,10 @@ Examples:
     init_parser.add_argument('--end', default='2025-12-31', help='End date (YYYY-MM-DD)')
     init_parser.add_argument('--workers', type=int, default=4, help='Parallel downloads')
     init_parser.add_argument('--data-dir', help='Custom data directory')
+    init_parser.add_argument('--raw-only', action='store_true', help='Only download (no processing)')
+    init_parser.add_argument('--extract', action='store_true', help='Extract ZIP files after download')
+    init_parser.add_argument('--delete-zip', action='store_true', help='Delete ZIP files after extraction')
+    init_parser.add_argument('--overwrite', action='store_true', help='Re-download files even if present')
     init_parser.add_argument('--log-level', default='INFO', 
                            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
     
@@ -48,6 +55,10 @@ Examples:
     update_parser.add_argument('--include-current', action='store_true',
                              help='Include current month')
     update_parser.add_argument('--data-dir', help='Custom data directory')
+    update_parser.add_argument('--raw-only', action='store_true', help='Only download (no processing)')
+    update_parser.add_argument('--extract', action='store_true', help='Extract ZIP files after download')
+    update_parser.add_argument('--delete-zip', action='store_true', help='Delete ZIP files after extraction')
+    update_parser.add_argument('--overwrite', action='store_true', help='Re-download files even if present')
     update_parser.add_argument('--log-level', default='INFO',
                              choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
     
@@ -55,6 +66,18 @@ Examples:
     status_parser = subparsers.add_parser('status', help='Check pipeline status')
     status_parser.add_argument('--data-dir', help='Custom data directory')
     
+    # Fetch command (download only, no processing)
+    fetch_parser = subparsers.add_parser('fetch', help='Download monthly ZIPs without processing')
+    fetch_parser.add_argument('--start', default='2020-01-01', help='Start date (YYYY-MM-DD)')
+    fetch_parser.add_argument('--end', default='2025-12-31', help='End date (YYYY-MM-DD)')
+    fetch_parser.add_argument('--workers', type=int, default=4, help='Parallel downloads')
+    fetch_parser.add_argument('--data-dir', help='Custom data directory')
+    fetch_parser.add_argument('--extract', action='store_true', help='Extract ZIP files after download')
+    fetch_parser.add_argument('--delete-zip', action='store_true', help='Delete ZIP files after extraction')
+    fetch_parser.add_argument('--overwrite', action='store_true', help='Re-download files even if present')
+    fetch_parser.add_argument('--log-level', default='INFO', 
+                              choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
+
     # Clean command
     clean_parser = subparsers.add_parser('clean', help='Clean data directory')
     clean_parser.add_argument('--data-dir', help='Custom data directory')
@@ -85,7 +108,10 @@ def handle_init(args):
     success = pipeline.run_initial_ingestion(
         start_date=args.start,
         end_date=args.end,
-        max_workers=args.workers
+        max_workers=args.workers,
+        raw_only=bool(getattr(args, 'raw_only', False)),
+        extract=bool(getattr(args, 'extract', False)),
+        delete_zip=bool(getattr(args, 'delete_zip', False))
     )
     
     if not success:
@@ -101,7 +127,10 @@ def handle_update(args):
     # Run pipeline
     pipeline = CVMPipeline(data_dir=args.data_dir)
     success = pipeline.run_monthly_update(
-        include_current_month=args.include_current
+        include_current_month=args.include_current,
+        raw_only=bool(getattr(args, 'raw_only', False)),
+        extract=bool(getattr(args, 'extract', False)),
+        delete_zip=bool(getattr(args, 'delete_zip', False))
     )
     
     if not success:
@@ -147,6 +176,35 @@ def handle_status(args):
     print(f"  Catalog file: {'Exists' if status['storage'].get('catalog_file_exists') else 'Missing'}")
     
     print("="*60)
+
+
+def handle_fetch(args):
+    """Handle fetch command: download and optionally extract zips without any processing."""
+    from core.downloader import DownloadManager
+    from config import settings
+
+    # Apply custom data dir if provided
+    if args.data_dir:
+        settings.DATA_DIR = Path(args.data_dir)
+        for subdir in ["raw", "raw_unzip", "processed", "cache"]:
+            (settings.DATA_DIR / subdir).mkdir(parents=True, exist_ok=True)
+
+    dm = DownloadManager()
+
+    # Download range
+    downloaded = dm.download_range(args.start, args.end, max_workers=args.workers, force=bool(getattr(args, 'overwrite', False)))
+
+    if not downloaded:
+        print("No files were downloaded.")
+        return
+
+    if args.extract:
+        for p in downloaded:
+            ok = dm.extract_zip(p, delete_zip_after=bool(getattr(args, 'delete_zip', False)))
+            if not ok:
+                print(f"Failed to extract {p.name}")
+
+    print("Fetch complete.")
 
 def handle_clean(args):
     """Handle clean command."""
@@ -225,6 +283,8 @@ def main():
             handle_init(args)
         elif args.command == 'update':
             handle_update(args)
+        elif args.command == 'fetch':
+            handle_fetch(args)
         elif args.command == 'status':
             handle_status(args)
         elif args.command == 'clean':
