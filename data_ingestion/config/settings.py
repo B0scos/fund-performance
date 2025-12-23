@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Base paths
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-DATA_DIR = "../../" / PROJECT_ROOT / "data"
+DATA_DIR = PROJECT_ROOT.parent / "data" 
 LOGS_DIR = PROJECT_ROOT / "logs"
 
 # Data subdirectories
