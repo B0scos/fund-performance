@@ -76,6 +76,41 @@ class ProcessRaw:
             df = pd.concat(df_list, ignore_index=True)
             logger.info("Concatenated %d files into dataframe with %d rows and %d columns",
                         len(df_list), len(df), len(df.columns))
+
+            # Drop and rename domain-specific columns for consistency
+            def _drop_and_rename(df: pd.DataFrame) -> pd.DataFrame:
+                # Columns to drop (if present)
+                drop_cols = ["CNPJ_FUNDO_CLASSE", "ID_SUBCLASE", "ID_SUBCLASSE"]
+                present_drop = [c for c in drop_cols if c in df.columns]
+                if present_drop:
+                    logger.info("Dropping columns: %s", present_drop)
+                    df = df.drop(columns=present_drop)
+
+                # Mapping to tidy, meaningful snake_case names (removes 'CLASSE')
+                col_map = {
+                    'TP_FUNDO_CLASSE': 'fund_type',
+                    'CNPJ_FUNDO_CLASSE': 'fund_cnpj',
+                    'ID_SUBCLASSE': 'subclass_id',
+                    'DT_COMPTC': 'report_date',
+                    'VL_TOTAL': 'total_value',
+                    'VL_QUOTA': 'quota_value',
+                    'VL_PATRIM_LIQ': 'net_asset_value',
+                    'CAPTC_DIA': 'daily_inflow',
+                    'RESG_DIA': 'daily_redemptions',
+                    'NR_COTST': 'num_shareholders',
+                }
+
+                present_rename = {k: v for k, v in col_map.items() if k in df.columns}
+                if present_rename:
+                    df = df.rename(columns=present_rename)
+                    logger.info("Renamed columns: %s", present_rename)
+
+                # Ensure snake_case and no spaces
+                df.columns = [c.strip().lower().replace(' ', '_') for c in df.columns]
+                logger.debug("Final columns after rename: %s", list(df.columns))
+                return df
+
+            df = _drop_and_rename(df)
             return df
 
         except Exception as e:
@@ -155,7 +190,8 @@ class ProcessRaw:
             # - If the main file is parquet, write a small sample CSV for quick inspection.
             # - If the main file is CSV, do NOT write an additional sample to avoid duplicates.
             if fmt == "parquet":
-                sample_path = self.path_processed_path / f"{out_path.stem}_sample.csv"
+                # Save small sample CSV into interim (better place for inspection artifacts)
+                sample_path = self.path_interim_path / f"{out_path.stem}_sample.csv"
                 df.head(sample_csv_lines).to_csv(sample_path, index=False, sep=sep, encoding="utf-8")
                 logger.info("Saved sample CSV (%d rows) to %s", sample_csv_lines, sample_path)
             else:
