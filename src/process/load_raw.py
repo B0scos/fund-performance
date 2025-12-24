@@ -86,7 +86,7 @@ class ProcessRaw:
             # Drop and rename domain-specific columns for consistency
             def _drop_and_rename(df: pd.DataFrame) -> pd.DataFrame:
                 # Columns to drop (if present)
-                drop_cols = ["CNPJ_FUNDO_CLASSE", "ID_SUBCLASE", "ID_SUBCLASSE"]
+                drop_cols = ["TP_FUNDO_CLASSE", "ID_SUBCLASE", "ID_SUBCLASSE"]
                 present_drop = [c for c in drop_cols if c in df.columns]
                 if present_drop:
                     logger.info("Dropping columns: %s", present_drop)
