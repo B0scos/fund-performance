@@ -11,6 +11,8 @@ from src.config.settings import DATA_RAW_UNZIP_PATH, DATA_PROCESSED_PATH
 from src.utils.custom_exception import raise_from_exception, CustomException
 from src.utils.custom_logger import get_logger
 
+from src.config.settings import DATA_INTERIM_PATH
+
 logger = get_logger(__name__)
 
 
@@ -23,11 +25,14 @@ class ProcessRaw:
     provided).
     """
 
-    def __init__(self, raw_path: Optional[Path] = None, processed_path: Optional[Path] = None) -> None:
+    def __init__(self, raw_path: Optional[Path] = None, processed_path: Optional[Path] = None, interim_path: Optional[Path] = None) -> None:
         self.path_raw_data: Path = Path(raw_path) if raw_path else DATA_RAW_UNZIP_PATH
         self.path_processed_path: Path = Path(processed_path) if processed_path else DATA_PROCESSED_PATH
-        # Ensure processed folder exists
+        self.path_interim_path: Path = Path(interim_path) if interim_path else DATA_INTERIM_PATH
+
+        # Ensure directories exist
         self.path_processed_path.mkdir(parents=True, exist_ok=True)
+        self.path_interim_path.mkdir(parents=True, exist_ok=True)
 
     def concat(self, sep: str = ";") -> pd.DataFrame:
         """Read all CSV files under `path_raw_data` and concatenate into a DataFrame.
