@@ -120,7 +120,7 @@ class ProcessRaw:
     def save(
         self,
         df: pd.DataFrame,
-        filename: str = "processed.parquet",
+        filename: str = "interim.parquet",
         fmt: str = "parquet",
         sample_csv_lines: int = 10,
         sep: str = ";",
@@ -158,7 +158,7 @@ class ProcessRaw:
             Path to the main output file.
         """
         try:
-            out_path = self.path_processed_path / filename
+            out_path = self.path_interim_path / filename
             nrows = len(df)
 
             if fmt == "parquet":
