@@ -49,6 +49,7 @@ class ProcessRaw:
         """
         try:
             df_list = []
+            provenance = []
             files_found = 0
             for root, _dirs, files in os.walk(self.path_raw_data):
                 for file in files:
@@ -73,11 +74,9 @@ class ProcessRaw:
                         logger.debug("utf-8 failed for %s; trying latin-1", rel_path)
                         df_read = pd.read_csv(file_path, sep=sep, encoding="latin-1")
 
-                    # Track provenance so we can report which files contribute bad rows
-                    df_read["source_file"] = rel_path
-
-                    logger.info("Loaded %s rows from %s", len(df_read), rel_path)
-                    df_list.append(df_read)
+                    # Track provenance separately (do NOT add a 'source_file' column to the dataframe)
+                    provenance.append((rel_path, df_read.copy()))
+                df_list.append(df_read)
 
             if files_found == 0:
                 raise CustomException(f"No CSV files found in {self.path_raw_data}")
@@ -143,7 +142,7 @@ class ProcessRaw:
 
             # Generate per-source report of missing/invalid rows
             try:
-                report_df = generate_source_report(df, out_dir=self.path_interim_path, required_columns=["fund_cnpj", "report_date"], name="concat", write_csv=True)
+                report_df = generate_source_report(df, out_dir=self.path_interim_path, required_columns=["fund_cnpj", "report_date"], name="concat", write_csv=True, per_source=provenance)
                 report_path = self.path_interim_path / "concat_source_report.csv"
                 logger.info("Source report saved to %s", report_path)
                 # Log top offending files
@@ -167,6 +166,7 @@ class ProcessRaw:
         sample_csv_lines: int = 10,
         sep: str = ";",
         allow_full_csv: bool = False,
+        target: str = "interim",
     ) -> Path:
         """Save dataframe in the chosen format and also write a small CSV sample.
 
@@ -175,6 +175,12 @@ class ProcessRaw:
         For safety, the method will **never** write a full CSV file by default when
         the DataFrame is large. To force writing a full CSV, pass
         `allow_full_csv=True` (not recommended). Instead, prefer Parquet output.
+
+        New parameter
+        -------------
+        target : str
+            Destination directory for the output file. One of `'processed'` or
+            `'interim'`. Defaults to `'interim'` to preserve historical behaviour.
 
         Parameters
         ----------
@@ -200,7 +206,12 @@ class ProcessRaw:
             Path to the main output file.
         """
         try:
-            out_path = self.path_interim_path / filename
+            if target not in {"processed", "interim"}:
+                raise CustomException(f"Unsupported target: {target}; use 'processed' or 'interim'")
+
+            base_dir = self.path_processed_path if target == "processed" else self.path_interim_path
+            base_dir.mkdir(parents=True, exist_ok=True)
+            out_path = base_dir / filename
             nrows = len(df)
 
             if fmt == "parquet":
