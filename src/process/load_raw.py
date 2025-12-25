@@ -1,4 +1,3 @@
-"""Utilities to load raw CSV files, concatenate them and save processed output."""
 from __future__ import annotations
 
 import os

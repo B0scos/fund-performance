@@ -1,9 +1,3 @@
-"""Data validation utilities.
-
-Provides simple schema validation helpers that raise `CustomException` on
-fatal issues. Manifest generation and file-writing have been removed from
-this module; validation now focuses on in-memory checks only.
-"""
 from __future__ import annotations
 
 from typing import List
