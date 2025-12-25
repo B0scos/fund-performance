@@ -33,8 +33,7 @@ class DataCleanerConfig:
 
 
 class DataCleaner:
-    """Backbone class for cleaning tabular data.
-
+    """
     Usage:
         dc = DataCleaner(config=DataCleanerConfig(required_columns=["fund_cnpj", "report_date"]))
         cleaned = dc.run(raw_df)
@@ -55,7 +54,8 @@ class DataCleaner:
 
     def __init__(self, config: Optional[DataCleanerConfig] = None, logger: Optional[logging.Logger] = None):
         self.config = config or DataCleanerConfig()
-        self.logger = logger or logger
+        # Use the provided logger or fall back to the module logger created by get_logger
+        self.logger = logger or get_logger(__name__)
 
     # ---------- Public API ----------
     def run(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -71,8 +71,6 @@ class DataCleaner:
         self._validate_input(df)
 
         df = self._drop_empty_rows(df)
-        df = self._standardize_columns(df)
-        df = self._impute_missing(df)
         df = self._deduplicate(df)
         df = self._flag_outliers(df)
 
@@ -95,7 +93,6 @@ class DataCleaner:
             self.logger.error(msg)
             raise CustomException(msg)
 
-    # ---------- Cleaning steps (placeholders) ----------
     def _drop_empty_rows(self, df: pd.DataFrame) -> pd.DataFrame:
         """Drop rows where required columns are empty.
 
@@ -103,35 +100,15 @@ class DataCleaner:
         original DataFrame unchanged but logs the intended behavior.
         """
         self.logger.debug("_drop_empty_rows called (no-op)")
-        # Example implementation hint (do not enable here):
-        # subset = self.config.required_columns or df.columns.tolist()
-        # return df.dropna(subset=subset, how='all')
-        return df
+        subset = self.config.required_columns or df.columns.tolist()
+        return df.dropna(subset=subset, how='all')
 
-    def _standardize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize/rename/format columns (e.g., whitespace, case).
-
-        TODO: Implement your logic here.
-        """
-        self.logger.debug("_standardize_columns called (no-op)")
-        return df
-
-    def _impute_missing(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Impute missing values according to `self.config.impute_strategy`.
-
-        TODO: Implement your logic here.
-        """
-        self.logger.debug("_impute_missing called (no-op)")
-        return df
 
     def _deduplicate(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Deduplicate rows.
-
-        Hint: use `self.config.dedupe_subset` to restrict keys.
-        TODO: Implement your logic here.
+        """Drop duplicates rows.
         """
         self.logger.debug("_deduplicate called (no-op)")
-        return df
+        return df.drop_duplicates()
 
     def _flag_outliers(self, df: pd.DataFrame) -> pd.DataFrame:
         """Flag outliers according to `self.config.outlier_params`.
