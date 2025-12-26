@@ -10,6 +10,8 @@ from src.utils.custom_exception import CustomException
 
 # Import ProcessRaw so DataCleaner can optionally persist cleaned data
 from src.process.load_raw import ProcessRaw
+from src.config.settings import data_split_cutoff
+
 
 logger = get_logger(__name__)
 
@@ -94,6 +96,7 @@ class DataCleaner:
 
         df = self._drop_empty_rows(df)
         df = self._deduplicate(df)
+        df = self._filter_min_shareholders_pre_cutoff(df)
         df = self._flag_outliers(df)
 
         # Optionally persist the cleaned dataframe into data/processed
@@ -158,6 +161,41 @@ class DataCleaner:
         """
         self.logger.debug("_flag_outliers called (no-op)")
         return df
+    
+    def _filter_min_shareholders_pre_cutoff(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Remove a fund (CNPJ) entirely if it ever had <= 15 shareholders
+        on any date older than data_split_cutoff.
+        """
+        try:
+            required = {"fund_cnpj", "num_shareholders", "report_date"}
+            if not required.issubset(df.columns):
+                return df
+
+            cutoff = pd.to_datetime(data_split_cutoff)
+            df["report_date"] = pd.to_datetime(df["report_date"])
+
+            bad_cnpjs = (
+                df.loc[
+                    (df["report_date"] < cutoff) &
+                    (df["num_shareholders"] <= 15),
+                    "fund_cnpj"
+                ]
+                .unique()
+            )
+
+            filtered = df[~df["fund_cnpj"].isin(bad_cnpjs)]
+
+            self.logger.info(
+                "Removed %d funds for having <= 15 shareholders before cutoff %s",
+                len(bad_cnpjs),
+                cutoff,
+            )
+            return filtered
+
+        except Exception as exc:
+            self.logger.error("Failed shareholder cutoff filter: %s", exc)
+            raise CustomException("Error filtering funds by shareholder rule") from exc
 
     # ---------- Utilities ----------
     @staticmethod
