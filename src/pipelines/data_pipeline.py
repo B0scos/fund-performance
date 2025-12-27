@@ -46,9 +46,14 @@ def data_pipeline(skip_concat = False):
         features_creation_test = FeaturesCreation(test_df)
         features_creation_val = FeaturesCreation(val_df)
 
-        train_df_features = features_creation_train.run()
-        test_df_features = features_creation_test.run()
-        val_df_features = features_creation_val.run()
+        features_creation_train.run()
+        features_creation_test.run()
+        features_creation_val.run()
+
+        train_df_features = features_creation_train.aggregate_features()
+        test_df_features = features_creation_test.aggregate_features()
+        val_df_features = features_creation_val.aggregate_features()
+
 
         # saving the data after feature eng
         save_dataframe_parquet(train_df_features, DATA_TRAIN_PATH_WITH_FEATURES)
