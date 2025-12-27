@@ -5,6 +5,8 @@ from src.config.settings import train_test_split_ratio, data_split_cutoff
 from src.utils.custom_exception import CustomException
 from src.utils.custom_logger import get_logger
 from src.config.settings import DATA_TRAIN_PATH, DATA_TEST_PATH, DATA_VALIDATION_PATH
+from src.config.settings import DATA_TRAIN_PATH_WITH_FEATURES, DATA_TEST_PATH_WITH_FEATURES, DATA_VALIDATION_PATH_WITH_FEATURES
+
 
 from src.process.features import FeaturesCreation
 
@@ -43,7 +45,10 @@ def data_pipeline():
         test_df_features = features_creation_test.run()
         val_df_features = features_creation_val.run()
 
-        
+        # saving the data after feature eng
+        save_dataframe_parquet(train_df_features, DATA_TRAIN_PATH_WITH_FEATURES)
+        save_dataframe_parquet(test_df_features, DATA_TEST_PATH_WITH_FEATURES)
+        save_dataframe_parquet(val_df_features, DATA_VALIDATION_PATH_WITH_FEATURES)
         
 
     except Exception as e:
