@@ -6,27 +6,32 @@ from src.utils.custom_exception import CustomException
 from src.utils.custom_logger import get_logger
 from src.config.settings import DATA_TRAIN_PATH, DATA_TEST_PATH, DATA_VALIDATION_PATH
 from src.config.settings import DATA_TRAIN_PATH_WITH_FEATURES, DATA_TEST_PATH_WITH_FEATURES, DATA_VALIDATION_PATH_WITH_FEATURES
-
+import pandas as pd
+from src.config.settings import DATA_INTERIM_PATH
 
 from src.process.features import FeaturesCreation
 
 logger = get_logger(__name__)
 
-def data_pipeline():
+def data_pipeline(skip_concat = False):
 
 
     try:
-        logger.info("data_pipeline.py started")
-        pr = ProcessRaw()
 
-        df = pr.concat()
-        
-        pr.save(df, filename="interim.parquet", fmt="parquet", target="interim")
-        
-        # Run data cleaning (skeleton; no destructive logic by default)
-        cfg = DataCleanerConfig(required_columns=["fund_cnpj", "report_date"])
-        dc = DataCleaner(config=cfg)
-        cleaned = dc.run(df, save=True, filename="cleaned.parquet", fmt="parquet")
+        if skip_concat:
+            logger.info("data_pipeline.py started")
+            pr = ProcessRaw()
+
+            df = pr.concat()
+            
+            pr.save(df, filename="interim.parquet", fmt="parquet", target="interim")
+            
+            # Run data cleaning (skeleton; no destructive logic by default)
+            cfg = DataCleanerConfig(required_columns=["fund_cnpj", "report_date"])
+            dc = DataCleaner(config=cfg)
+            cleaned = dc.run(df, save=True, filename="cleaned.parquet", fmt="parquet")
+        else:
+            cleaned = pd.read_parquet(DATA_INTERIM_PATH)
 
 
         # splitting the data
