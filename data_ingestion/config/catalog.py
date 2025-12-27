@@ -8,6 +8,8 @@ from typing import Optional
 from config import settings, constants
 from utils.state_manager import PipelineState
 from datetime import datetime
+import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +62,6 @@ class FundCatalog:
     
     def _download_catalog(self) -> pd.DataFrame:
         """Download fresh catalog from CVM."""
-        import time
         
         self.logger.info("Downloading latest fund catalog from CVM...")
         start_time = time.time()

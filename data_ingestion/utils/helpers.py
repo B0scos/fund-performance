@@ -7,6 +7,9 @@ import functools
 from datetime import datetime, timedelta
 from typing import List, Callable, Any
 from pathlib import Path
+import re
+import shutil
+
 
 def retry(max_attempts: int = 3, delay: int = 1):
     """
@@ -95,7 +98,6 @@ def normalize_cnpj(cnpj: str) -> str:
     Returns:
         CNPJ with only digits
     """
-    import re
     return re.sub(r'\D', '', cnpj)
 
 def check_disk_space(path: Path, required_gb: float = 1.0) -> bool:
@@ -110,7 +112,6 @@ def check_disk_space(path: Path, required_gb: float = 1.0) -> bool:
         True if enough space, False otherwise
     """
     try:
-        import shutil
         free_bytes = shutil.disk_usage(path).free
         free_gb = free_bytes / (1024 ** 3)
         return free_gb >= required_gb

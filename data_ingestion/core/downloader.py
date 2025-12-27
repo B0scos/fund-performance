@@ -13,6 +13,7 @@ from datetime import datetime
 from config import settings, constants
 from utils.helpers import retry
 from utils.helpers import generate_month_range
+import zipfile
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ class DownloadManager:
         Returns:
             True if extraction succeeded, False otherwise
         """
-        import zipfile
 
         dest_dir = dest_dir or self.raw_unzip_dir
         target_dir = dest_dir / zip_path.stem

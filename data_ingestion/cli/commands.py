@@ -11,6 +11,12 @@ from core.pipeline import CVMPipeline
 from config import settings
 import shutil
 
+from utils.state_manager import PipelineState
+from config import settings
+
+from core.downloader import DownloadManager
+from config import settings
+
 def create_parser() -> argparse.ArgumentParser:
     """Create CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -138,8 +144,7 @@ def handle_update(args):
 
 def handle_status(args):
     """Handle status command."""
-    from utils.state_manager import PipelineState
-    from config import settings
+
     
     # Load state
     if args.data_dir:
@@ -180,8 +185,6 @@ def handle_status(args):
 
 def handle_fetch(args):
     """Handle fetch command: download and optionally extract zips without any processing."""
-    from core.downloader import DownloadManager
-    from config import settings
 
     # Apply custom data dir if provided
     if args.data_dir:

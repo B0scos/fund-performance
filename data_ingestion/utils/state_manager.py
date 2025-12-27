@@ -9,6 +9,9 @@ from typing import Dict, Any, Optional
 
 from config import settings
 
+from pathlib import Path
+
+
 class PipelineState:
     """Manage pipeline state persistence."""
     
@@ -99,7 +102,6 @@ class PipelineState:
     
     def get_full_status(self) -> Dict[str, Any]:
         """Get complete status information."""
-        from pathlib import Path
         
         status = self._state.copy()
         
