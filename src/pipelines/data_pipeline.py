@@ -56,9 +56,9 @@ def data_pipeline(skip_concat = False):
 
 
         # saving the data after feature eng
-        save_dataframe_parquet(train_df_features, DATA_TRAIN_PATH_WITH_FEATURES)
-        save_dataframe_parquet(test_df_features, DATA_TEST_PATH_WITH_FEATURES)
-        save_dataframe_parquet(val_df_features, DATA_VALIDATION_PATH_WITH_FEATURES)
+        save_dataframe_parquet(train_df_features, DATA_TRAIN_PATH_WITH_FEATURES, index=True)
+        save_dataframe_parquet(test_df_features, DATA_TEST_PATH_WITH_FEATURES, index=True)
+        save_dataframe_parquet(val_df_features, DATA_VALIDATION_PATH_WITH_FEATURES, index=True)
         
 
     except Exception as e:

@@ -164,8 +164,11 @@ class DataCleaner:
     
     def _filter_min_shareholders_pre_cutoff(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Remove a fund (CNPJ) entirely if it ever had <= thresh_hold_num_shareholds shareholders
-        on any date older than data_split_cutoff.
+        Remove a fund entirely if:
+        1) It ever had <= thresh_hold_num_shareholds shareholders on any date
+        earlier than data_split_cutoff; OR
+        2) The fund was created after data_split_cutoff
+        (i.e. it has no observations before cutoff).
         """
         try:
             required = {"fund_cnpj", "num_shareholders", "report_date"}
@@ -175,28 +178,36 @@ class DataCleaner:
             cutoff = pd.to_datetime(data_split_cutoff)
             df["report_date"] = pd.to_datetime(df["report_date"])
 
-            bad_cnpjs = (
+            # funds that violate shareholder rule before cutoff
+            bad_low_shareholders = (
                 df.loc[
-                    (df["report_date"] < cutoff) &
-                    (df["num_shareholders"] <= thresh_hold_num_shareholds),
-                    "fund_cnpj"
+                    (df["report_date"] < cutoff)
+                    & (df["num_shareholders"] <= thresh_hold_num_shareholds),
+                    "fund_cnpj",
                 ]
                 .unique()
             )
 
+            # funds born after cutoff (no records before cutoff)
+            fund_first_dates = df.groupby("fund_cnpj")["report_date"].min()
+            born_after_cutoff = fund_first_dates[fund_first_dates >= cutoff].index
+
+            bad_cnpjs = set(bad_low_shareholders) | set(born_after_cutoff)
+
             filtered = df[~df["fund_cnpj"].isin(bad_cnpjs)]
 
             self.logger.info(
-                "Removed %d funds for having <= thresh_hold_num_shareholds shareholders before cutoff %s",
+                "Removed %d funds violating shareholder rule or born after cutoff %s",
                 len(bad_cnpjs),
                 cutoff,
             )
+
             return filtered
 
         except Exception as exc:
             self.logger.error("Failed shareholder cutoff filter: %s", exc)
             raise CustomException("Error filtering funds by shareholder rule") from exc
-
+        
     # ---------- Utilities ----------
     @staticmethod
     def summary(df: pd.DataFrame) -> Dict[str, Any]:
