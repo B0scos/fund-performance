@@ -46,9 +46,9 @@ def data_pipeline(skip_concat = False):
         features_creation_test = FeaturesCreation(test_df)
         features_creation_val = FeaturesCreation(val_df)
 
-        save_dataframe_parquet(train_df, features_creation_train)
-        save_dataframe_parquet(test_df, features_creation_test)
-        save_dataframe_parquet(val_df, features_creation_val)
+        save_dataframe_parquet(features_creation_train, features_creation_train)
+        save_dataframe_parquet(features_creation_test, features_creation_test)
+        save_dataframe_parquet(features_creation_val, features_creation_val)
 
         features_creation_train.run()
         features_creation_test.run()
