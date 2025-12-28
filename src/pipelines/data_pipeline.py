@@ -41,14 +41,14 @@ def data_pipeline(skip_concat = False):
                                                 test_ratio=train_test_split_ratio
                                             )
 
-        # saving the data
-        save_dataframe_parquet(train_df, DATA_TRAIN_PATH)
-        save_dataframe_parquet(test_df, DATA_TEST_PATH)
-        save_dataframe_parquet(val_df, DATA_VALIDATION_PATH)
 
         features_creation_train = FeaturesCreation(train_df)
         features_creation_test = FeaturesCreation(test_df)
         features_creation_val = FeaturesCreation(val_df)
+
+        save_dataframe_parquet(train_df, features_creation_train)
+        save_dataframe_parquet(test_df, features_creation_test)
+        save_dataframe_parquet(val_df, features_creation_val)
 
         features_creation_train.run()
         features_creation_test.run()
