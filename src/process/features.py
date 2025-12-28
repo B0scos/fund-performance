@@ -30,23 +30,17 @@ def calculate_correlation_features(group: pd.DataFrame) -> pd.Series:
         features['corr_return_vol5'] = group['return'].corr(group['vol_5'])
         features['corr_return_vol10'] = group['return'].corr(group['vol_10'])
         features['corr_return_vol15'] = group['return'].corr(group['vol_15'])
+        # features['auto_corr_1'] = group['return'].autocorr(1)
+        # features['auto_corr_2'] = group['return'].autocorr(2)
+        # features['auto_corr_5'] = group['return'].autocorr(5)
         
-        # Drawdown vs inflow correlation
-        features['corr_drawdown_inflow'] = group['drawdown'].corr(group['daily_inflow'])
-        
-        # Return vs redemption correlation
-        features['corr_return_redemptions'] = group['return'].corr(group['daily_redemptions'])
-        
-        # Drawdown vs shareholders correlation
-        features['corr_drawdown_shareholders'] = group['drawdown'].corr(group['num_shareholders'])
+
     else:
         # For groups with only 1 observation, set correlations to NaN
         features['corr_return_vol5'] = np.nan
         features['corr_return_vol10'] = np.nan
         features['corr_return_vol15'] = np.nan
-        features['corr_drawdown_inflow'] = np.nan
-        features['corr_return_redemptions'] = np.nan
-        features['corr_drawdown_shareholders'] = np.nan
+
     
     return pd.Series(features)
 
@@ -108,8 +102,11 @@ class FeaturesCreation:
         agg_features = self.df.groupby("fund_cnpj").agg(
             ## features based on returns
             mean_return=("return", "mean"),
+            median_return=("return", "median"),
             std_return=("return", "std"),
-
+            skew_return=("return", "skew"),
+            kurt_return=("return", pd.Series.kurt),
+        
             ## features based on drawdown
             max_drawdown=("drawdown", "min"),
             avg_drawdown=("drawdown", "mean"),
@@ -141,6 +138,7 @@ class FeaturesCreation:
         # Calculate derived ratios
         logger.info("Calculating derived ratios")
         agg_features['sharpe'] = agg_features['mean_return'] / agg_features['std_return']
+        agg_features['sharpe_mean_Std_5'] = agg_features['mean_return'] / agg_features['mean_std_5']
         agg_features['ret_by_DD'] = agg_features['mean_return'] / agg_features['avg_drawdown']
         agg_features['ret_by_timedd'] = agg_features['mean_return'] / agg_features['avg_time_drawdown']
         agg_features['ret_by_timedd_max'] = agg_features['mean_return'] / agg_features['max_time_drawdown']
@@ -185,16 +183,37 @@ class FeaturesCreation:
         return self.df
 
     def _add_time_in_drawdown(self, col: str) -> pd.DataFrame:
+        """
+        Calculate consecutive days in drawdown for each fund.
+        
+        A drawdown is when current value is below previous peak (drawdown > 0).
+        This function counts consecutive days where drawdown > 0 for each fund.
+        """
         logger.info("Creating 'time_in_drawdown' feature")
-
-        # drawdown duration (days in DD)
-        cond = self.df[col] > 0
-
-        self.df[f'time_in_{col}'] = (
-            cond.groupby([self.df["fund_cnpj"], (~cond).cumsum()])
-                .cumcount() + 1
-        ).where(cond, 0)
-
-        # Rename column for consistency
-        self.df.rename(columns={f'time_in_{col}': 'time_in_drawdown'}, inplace=True)
+        
+        def calculate_consecutive_drawdown(group_drawdown: pd.Series) -> pd.Series:
+            """Calculate consecutive days in drawdown for a single fund."""
+            # Initialize result array
+            result = np.zeros(len(group_drawdown))
+            
+            # Track current consecutive count
+            current_streak = 0
+            
+            for i in range(len(group_drawdown)):
+                if group_drawdown.iloc[i] > 0:  # In drawdown
+                    current_streak += 1
+                    result[i] = current_streak
+                else:  # Not in drawdown
+                    current_streak = 0
+                    result[i] = 0
+            
+            return pd.Series(result, index=group_drawdown.index)
+        
+        # Apply to each fund group
+        self.df['time_in_drawdown'] = (
+            self.df.groupby('fund_cnpj')[col]
+            .apply(calculate_consecutive_drawdown)
+            .reset_index(level=0, drop=True)
+        )
+        
         return self.df
