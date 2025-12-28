@@ -1,15 +1,54 @@
 from __future__ import annotations
 
-
 import pandas as pd
-
-from src.utils.custom_logger import get_logger
-
 import numpy as np
 from functools import partial
 
+from src.utils.custom_logger import get_logger
+
 logger = get_logger(__name__)
 
+def calculate_correlation_features(group: pd.DataFrame) -> pd.Series:
+    """
+    Calculate correlation features from a group DataFrame.
+    
+    Parameters
+    ----------
+    group : pd.DataFrame
+        A pandas DataFrame containing data for a single fund.
+    
+    Returns
+    -------
+    pd.Series
+        A pandas Series with correlation features.
+    """
+    features = {}
+    
+    # Calculate correlations only if we have at least 2 observations
+    if len(group) > 1:
+        # Return vs volatility correlations
+        features['corr_return_vol5'] = group['return'].corr(group['vol_5'])
+        features['corr_return_vol10'] = group['return'].corr(group['vol_10'])
+        features['corr_return_vol15'] = group['return'].corr(group['vol_15'])
+        
+        # Drawdown vs inflow correlation
+        features['corr_drawdown_inflow'] = group['drawdown'].corr(group['daily_inflow'])
+        
+        # Return vs redemption correlation
+        features['corr_return_redemptions'] = group['return'].corr(group['daily_redemptions'])
+        
+        # Drawdown vs shareholders correlation
+        features['corr_drawdown_shareholders'] = group['drawdown'].corr(group['num_shareholders'])
+    else:
+        # For groups with only 1 observation, set correlations to NaN
+        features['corr_return_vol5'] = np.nan
+        features['corr_return_vol10'] = np.nan
+        features['corr_return_vol15'] = np.nan
+        features['corr_drawdown_inflow'] = np.nan
+        features['corr_return_redemptions'] = np.nan
+        features['corr_drawdown_shareholders'] = np.nan
+    
+    return pd.Series(features)
 
 class FeaturesCreation:
     """
@@ -32,6 +71,7 @@ class FeaturesCreation:
         self._add_gross_by_net()
         self._add_vol_std([5, 10, 15], "return")
         self._add_drawdown('quota_value')
+        self._add_time_in_drawdown('drawdown')
 
         return self.df.reset_index(drop=True)
         
@@ -64,15 +104,17 @@ class FeaturesCreation:
         """
         logger.info("Starting FeaturesCreation.aggregate()")
 
+        # Calculate basic aggregates
         agg_features = self.df.groupby("fund_cnpj").agg(
-            
-            ## features based on retuns
+            ## features based on returns
             mean_return=("return", "mean"),
             std_return=("return", "std"),
 
             ## features based on drawdown
             max_drawdown=("drawdown", "min"),
             avg_drawdown=("drawdown", "mean"),
+            avg_time_drawdown=('time_in_drawdown', 'mean'),
+            max_time_drawdown=('time_in_drawdown', 'max'),
 
             ## features based on funds
             avg_gross_by_net=("gross_by_net", "mean"),
@@ -89,16 +131,29 @@ class FeaturesCreation:
             std_std_15=('vol_15', 'std'),
         )
 
+        # Calculate correlation features separately
+        logger.info("Calculating correlation features")
+        corr_features = self.df.groupby("fund_cnpj").apply(calculate_correlation_features)
+        
+        # Merge correlation features with basic aggregates
+        agg_features = pd.concat([agg_features, corr_features], axis=1)
+
+        # Calculate derived ratios
+        logger.info("Calculating derived ratios")
         agg_features['sharpe'] = agg_features['mean_return'] / agg_features['std_return']
         agg_features['ret_by_DD'] = agg_features['mean_return'] / agg_features['avg_drawdown']
-
+        agg_features['ret_by_timedd'] = agg_features['mean_return'] / agg_features['avg_time_drawdown']
+        agg_features['ret_by_timedd_max'] = agg_features['mean_return'] / agg_features['max_time_drawdown']
 
         # handle NaNs and infinities from funds with insufficient history
-        agg_features = agg_features.replace([np.inf, -np.inf], np.nan).dropna()
-        return agg_features
-
+        logger.info("Cleaning data: replacing infinities with NaN")
+        agg_features = agg_features.replace([np.inf, -np.inf], np.nan)
         
-
+        logger.info(f"Data shape before dropping NaN: {agg_features.shape}")
+        agg_features = agg_features.dropna()
+        logger.info(f"Data shape after dropping NaN: {agg_features.shape}")
+        
+        return agg_features
 
     def _add_return(self, col: str) -> pd.DataFrame:
         logger.info("Creating 'return' feature")
@@ -129,4 +184,17 @@ class FeaturesCreation:
         self.df["drawdown"] = (peak / self.df[col]) - 1
         return self.df
 
-    
+    def _add_time_in_drawdown(self, col: str) -> pd.DataFrame:
+        logger.info("Creating 'time_in_drawdown' feature")
+
+        # drawdown duration (days in DD)
+        cond = self.df[col] > 0
+
+        self.df[f'time_in_{col}'] = (
+            cond.groupby([self.df["fund_cnpj"], (~cond).cumsum()])
+                .cumcount() + 1
+        ).where(cond, 0)
+
+        # Rename column for consistency
+        self.df.rename(columns={f'time_in_{col}': 'time_in_drawdown'}, inplace=True)
+        return self.df
