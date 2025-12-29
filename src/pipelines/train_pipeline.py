@@ -18,3 +18,7 @@ def preprocessing(n_components):
     train_pca, test_pca, val_pca = pca.fit_transform()
 
     print(train_pca, test_pca, val_pca)
+
+
+
+
