@@ -97,7 +97,9 @@ class DataCleaner:
         df = self._drop_empty_rows(df)
         df = self._deduplicate(df)
         df = self._filter_min_shareholders_pre_cutoff(df)
+        df = self._filter_by_max_date_gap(df, max_gap=6)
         df = self._flag_outliers(df)
+        df = self._filter_by_gap_violations(df)
 
         # Optionally persist the cleaned dataframe into data/processed
         if save:
@@ -208,6 +210,123 @@ class DataCleaner:
             self.logger.error("Failed shareholder cutoff filter: %s", exc)
             raise CustomException("Error filtering funds by shareholder rule") from exc
         
+    def _filter_by_max_date_gap(self, df: pd.DataFrame, max_gap: int = 6) -> pd.DataFrame:
+        """
+        Remove funds where the maximum gap between consecutive report dates
+        is greater than `max_gap`.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input DataFrame
+        max_gap : int, default=6
+            Maximum allowed gap between consecutive report dates
+            
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with funds removed where max gap > max_gap
+        """
+        try:
+            # Check required columns
+            required = {"fund_cnpj", "report_date"}
+            if not required.issubset(df.columns):
+                return df
+            
+            # Ensure report_date is datetime
+            df = df.copy()
+            df["report_date"] = pd.to_datetime(df["report_date"])
+            
+            # Sort by fund and date
+            df = df.sort_values(["fund_cnpj", "report_date"])
+            
+            # Calculate gaps between consecutive dates for each fund
+            df["date_gap"] = df.groupby("fund_cnpj")["report_date"].diff()
+            
+            # Convert gap to appropriate unit (e.g., months, days)
+            # Choose one of these based on your needs:
+            
+            # Option 1: Gap in months (approx)
+            # df["date_gap_months"] = df["date_gap"].dt.days / 30.44
+            
+            # Option 2: Gap in days
+            df["date_gap_days"] = df["date_gap"].dt.days
+            
+            # Option 3: Gap in business months (if you have business logic)
+            # You'd need to implement custom logic here
+            
+            # Find funds with max gap > threshold
+            max_gaps = df.groupby("fund_cnpj")["date_gap_days"].max()
+            bad_funds = max_gaps[max_gaps > max_gap].index
+            
+            # Filter out these funds
+            filtered = df[~df["fund_cnpj"].isin(bad_funds)]
+            
+            # Drop temporary columns
+            filtered = filtered.drop(columns=["date_gap", "date_gap_days"])
+            
+            self.logger.info(
+                "Removed %d funds with maximum report date gap > %d days",
+                len(bad_funds),
+                max_gap,
+            )
+            
+            return filtered
+            
+        except Exception as exc:
+            self.logger.error("Failed to filter by date gap: %s", exc)
+        raise CustomException("Error filtering funds by date gap") from exc
+    
+    def _filter_by_gap_violations(
+        self,
+        df: pd.DataFrame,
+        min_days: int = 3,
+        max_allowed_violations: int = 11,
+    ) -> pd.DataFrame:
+        """
+        Remove funds where the number of gaps greater than `min_days`
+        is >= (max_allowed_violations + 1).
+        
+        Example: if you want to drop funds with 12+ gaps > 3 days:
+            min_days = 3
+            max_allowed_violations = 11
+        """
+        try:
+            required = {"fund_cnpj", "report_date"}
+            if not required.issubset(df.columns):
+                return df
+
+            df = df.copy()
+            df["report_date"] = pd.to_datetime(df["report_date"])
+            df = df.sort_values(["fund_cnpj", "report_date"])
+
+            # Compute diffs
+            df["gap_days"] = df.groupby("fund_cnpj")["report_date"].diff().dt.days
+
+            # Count violations per fund
+            violations = (
+                df.groupby("fund_cnpj")["gap_days"]
+                .apply(lambda s: (s > min_days).sum())
+            )
+
+            # Funds to discard
+            bad_funds = violations[violations >= (max_allowed_violations + 1)].index
+
+            filtered = df[~df["fund_cnpj"].isin(bad_funds)].drop(columns=["gap_days"])
+
+            self.logger.info(
+                "Removed %d funds with >= %d gaps > %d days",
+                len(bad_funds),
+                max_allowed_violations + 1,
+                min_days,
+            )
+
+            return filtered
+
+        except Exception as exc:
+            self.logger.error("Failed gap violation filter: %s", exc)
+            raise CustomException("Error filtering funds by date gap violations") from exc
+            
     # ---------- Utilities ----------
     @staticmethod
     def summary(df: pd.DataFrame) -> Dict[str, Any]:

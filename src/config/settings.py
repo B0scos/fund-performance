@@ -32,4 +32,4 @@ train_test_split_ratio = 0.2
 ## cleaning option
 
 # funds with less than this number will be removed
-thresh_hold_num_shareholds = 100
+thresh_hold_num_shareholds = 200
