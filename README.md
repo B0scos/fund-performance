@@ -1,78 +1,78 @@
-# Projeto de Clusterização de Dados
+# Data Clustering Project
 
-Este projeto é uma solução completa para realizar a clusterização de dados, desde a ingestão e processamento inicial até o treinamento e avaliação de modelos de machine learning. O sistema é dividido em dois componentes principais: um módulo de ingestão de dados e um pipeline de treinamento de modelos de clusterização.
+This project is a complete solution for data clustering, from initial data ingestion and processing to the training and evaluation of machine learning models. The system is divided into two main components: a data ingestion module and a clustering model training pipeline.
 
-## ✨ Funcionalidades
+## ✨ Features
 
-- **Módulo de Ingestão de Dados:** Coleta e prepara dados brutos de forma automatizada.
-- **Processamento e Limpeza:** Pipelines para validar, limpar e transformar os dados.
-- **Engenharia de Features:** Criação e seleção de features para otimizar o desempenho dos modelos.
-- **Treinamento de Modelos:** Suporte para múltiplos algoritmos de clusterização, como K-Means e Gaussian Mixture Models (GMM).
-- **Estrutura Modular:** Código organizado em componentes reutilizáveis, facilitando a manutenção e a expansão.
+- **Data Ingestion Module:** Automatically collects and prepares raw data.
+- **Processing and Cleaning:** Pipelines to validate, clean, and transform data.
+- **Feature Engineering:** Creation and selection of features to optimize model performance.
+- **Model Training:** Support for multiple clustering algorithms, such as K-Means and Gaussian Mixture Models (GMM).
+- **Modular Structure:** Code organized into reusable components, facilitating maintenance and expansion.
 
-## 📂 Estrutura do Projeto
+## 📂 Project Structure
 
-O projeto está organizado nos seguintes diretórios principais:
+The project is organized into the following main directories:
 
-- **`/data_ingestion`**: Módulo responsável pela coleta e armazenamento inicial dos dados. Contém sua própria lógica, CLI e configurações.
-- **`/src`**: Contém o código principal da aplicação, incluindo os pipelines de processamento, treinamento de modelos e utilitários.
-- **`/notebooks`**: Jupyter Notebooks para análise exploratória, testes e prototipagem.
-- **`/main.py`**: Ponto de entrada principal para orquestrar os pipelines do projeto.
-- **`/requirements.txt`**: Lista de dependências Python do projeto.
+- **`/data_ingestion`**: Module responsible for the initial collection and storage of data. It contains its own logic, CLI, and configurations.
+- **`/src`**: Contains the main application code, including processing pipelines, model training, and utilities.
+- **`/notebooks`**: Jupyter Notebooks for exploratory analysis, testing, and prototyping.
+- **`/main.py`**: Main entry point to orchestrate the project's pipelines.
+- **`/requirements.txt`**: List of the project's Python dependencies.
 
-## 🚀 Como Começar
+## 🚀 Getting Started
 
-Siga as instruções abaixo para configurar e executar o projeto em seu ambiente local.
+Follow the instructions below to set up and run the project in your local environment.
 
-### Pré-requisitos
+### Prerequisites
 
-- Python 3.9 ou superior
+- Python 3.9 or higher
 - Git
 
-### Instalação
+### Installation
 
-1.  Clone o repositório para sua máquina local:
+1.  Clone the repository to your local machine:
     ```bash
-    git clone <URL_DO_REPOSITORIO>
-    cd <NOME_DO_PROJETO>
+    git clone <REPOSITORY_URL>
+    cd <PROJECT_NAME>
     ```
 
-2.  Crie um ambiente virtual e ative-o:
+2.  Create a virtual environment and activate it:
     ```bash
     python -m venv .venv
-    source .venv/bin/activate  # No Windows, use: .venv\Scripts\activate
+    source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
     ```
 
-3.  Instale as dependências necessárias:
+3.  Install the required dependencies:
     ```bash
     pip install -r requirements.txt
     ```
 
-## 🛠️ Uso
+## 🛠️ Usage
 
-A execução do projeto é dividida em duas etapas principais: ingestão de dados e treinamento do pipeline.
+The project execution is divided into two main steps: data ingestion and pipeline training.
 
-### 1. Ingestão de Dados
+### 1. Data Ingestion (Brief)
 
-O módulo `data_ingestion` é responsável por baixar e processar os dados brutos. Ele possui uma interface de linha de comando (CLI) própria para iniciar o processo. Para mais detalhes, consulte o `README.md` dentro do diretório `data_ingestion`.
+The `data_ingestion` module is responsible for downloading and processing the raw data. It has its own command-line interface (CLI) to start the process. For more details, refer to the `README.md` inside the `data_ingestion` directory.
 
-Para executar a ingestão, navegue até o diretório e execute o script principal:
+To run the ingestion, navigate to the directory and execute the main script:
 ```bash
-python data_ingestion/main.py <COMANDOS_DA_CLI>
+python data_ingestion/main.py <CLI_COMMANDS>
 ```
 
-### 2. Pipeline de Treinamento
+### 2. Training Pipeline
 
-Após a conclusão da etapa de ingestão, os dados estarão prontos para serem processados e utilizados no treinamento dos modelos. O script `main.py` na raiz do projeto orquestra todas as etapas do pipeline principal.
+After the ingestion step is complete, the data will be ready to be processed and used for training the models. The `main.py` script in the project root orchestrates all steps of the main pipeline.
 
-Para executar o pipeline completo (processamento, seleção de features e treinamento), execute:
+To run the full pipeline (processing, feature selection, and training), execute:
 ```bash
 python main.py
 ```
 
-## ⚙️ Configuração
+## ⚙️ Configuration
 
-As configurações do projeto, como caminhos de arquivos, parâmetros de modelos e configurações de ambiente, podem ser encontradas e modificadas nos seguintes locais:
+Project settings, such as file paths, model parameters, and environment configurations, can be found and modified in the following locations:
 
-- **Ingestão de Dados:** `data_ingestion/config/`
-- **Pipeline Principal:** `src/config/`
+- **Data Ingestion:** `data_ingestion/config/`
+- **Main Pipeline:** `src/config/`
