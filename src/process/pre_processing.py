@@ -68,3 +68,31 @@ def scalling(df_train : pd.DataFrame, df_test : pd.DataFrame, df_val : pd.DataFr
     train_scaled, test_scaled, val_scaled = scaler.fit_transform()
 
     return train_scaled, test_scaled, val_scaled
+
+def PCA(df_train : pd.DataFrame, df_test : pd.DataFrame, df_val : pd.DataFrame):
+    keep_cols = ['mean_return', 'median_return', 'std_return', 'avg_time_drawdown', 'sharpe', 'max_drawdown']
+    df_train = df_train[keep_cols]
+    df_test = df_test[keep_cols]
+    df_val = df_val[keep_cols]
+
+    scaler = PCAWrapper(df_train, df_test, df_val)
+
+    train_scaled, test_scaled, val_scaled = scaler.fit_transform()
+
+    return train_scaled, test_scaled, val_scaled
+
+def just_filter(df_train : pd.DataFrame, df_test : pd.DataFrame, df_val : pd.DataFrame):
+    keep_cols = ['mean_return', 'median_return', 'std_return', 'avg_time_drawdown', 'sharpe', 'max_drawdown']
+    df_train = df_train[keep_cols]
+    df_test = df_test[keep_cols]
+    df_val = df_val[keep_cols]
+
+    return df_train, df_test, df_val
+
+
+def PCA_scalling(df_train : pd.DataFrame, df_test : pd.DataFrame, df_val : pd.DataFrame):
+
+    train_scaled, test_scaled, val_scaled = scalling(df_train, df_test, df_val)
+    train_scaled, test_scaled, val_scaled = PCA(train_scaled, test_scaled, val_scaled)
+
+    return train_scaled, test_scaled, val_scaled

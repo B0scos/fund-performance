@@ -1,10 +1,11 @@
 import pandas as pd
 
 def evaluate(df, look_features):
-    return (
-        df.groupby("pred")[look_features].mean(),
-        df["pred"].value_counts()
-    )
+    """Combines cluster feature means and value counts into a single DataFrame."""
+    means = df.groupby("pred")[look_features].mean()
+    counts = df["pred"].value_counts().rename("cluster_size")
+    results_df = pd.concat([means, counts], axis=1)
+    return results_df
 
 
 
@@ -29,5 +30,3 @@ def run_training(model_cls,
     df_val["pred"] = val_pred
 
     return df_train, df_test, df_val
-
-
